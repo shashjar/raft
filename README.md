@@ -1,2 +1,3 @@
 # raft
-An implementation of Raft in Zig.
+
+An implementation of Raft in Go.
