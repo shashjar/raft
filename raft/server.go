@@ -1,9 +1,16 @@
 package main
 
-type ServerType int
+import (
+	"fmt"
+	"log"
+	"net/http"
+	"strconv"
+)
+
+type ServerState int
 
 const (
-	Leader ServerType = iota
+	Leader ServerState = iota
 	Follower
 	Candidate
 )
@@ -14,12 +21,12 @@ type LogEntry struct {
 	term    int    // term when entry was received by leader
 }
 
-type ServerState struct {
+type RaftServer struct {
 	serverID     int
 	clusterSize  int
 	clusterAddrs map[int]ServerAddress
 
-	serverType ServerType
+	serverState ServerState
 
 	// Persistent state on all servers (updated on stable storage before responding to RPCs)
 	currentTerm int        // latest term server has seen (initialized to 0 on first boot, increases monotonically)
@@ -35,7 +42,7 @@ type ServerState struct {
 	matchIndex []int // for each server, index of highest log entry known to be replicated on server (initialized to 0, increases monotonically)
 }
 
-func initializeServerState(serverID int, clusterMembers map[int]ServerAddress) *ServerState {
+func initializeRaftServer(serverID int, clusterMembers map[int]ServerAddress) *RaftServer {
 	clusterSize := len(clusterMembers)
 	nextIndex := make([]int, clusterSize)
 	matchIndex := make([]int, clusterSize)
@@ -45,12 +52,12 @@ func initializeServerState(serverID int, clusterMembers map[int]ServerAddress) *
 		nextIndex[i] = 1
 	}
 
-	return &ServerState{
+	return &RaftServer{
 		serverID:     serverID,
 		clusterSize:  clusterSize,
 		clusterAddrs: clusterMembers,
 
-		serverType: Follower,
+		serverState: Follower,
 
 		currentTerm: 0,
 		votedFor:    -1,
@@ -65,7 +72,28 @@ func initializeServerState(serverID int, clusterMembers map[int]ServerAddress) *
 }
 
 func startServer(serverID int, clusterMembers map[int]ServerAddress) {
-	state := initializeServerState(serverID, clusterMembers)
+	// Create a Raft server instance with some initial state
+	server := initializeRaftServer(serverID, clusterMembers)
 
-	// TODO: Start the Raft server with the initialized state
+	// Register HTTP handlers for Raft RPCs
+	http.HandleFunc("/requestVote", server.handleRequestVote)
+	http.HandleFunc("/appendEntries", server.handleAppendEntries)
+
+	// Bring up the server to begin listening for RPCs
+	addr := clusterMembers[serverID]
+	fmt.Println("Raft server listening on port", addr.port)
+	err := http.ListenAndServe(addr.host+":"+strconv.Itoa(addr.port), nil)
+	if err != nil {
+		log.Fatalf("Failed to start Raft server: %v", err)
+	}
+}
+
+// TODO: implement
+func (s *RaftServer) handleRequestVote(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("RequestVote RPC received")
+}
+
+// TODO: implement
+func (s *RaftServer) handleAppendEntries(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("AppendEntries RPC received")
 }
