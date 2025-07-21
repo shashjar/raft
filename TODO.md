@@ -10,8 +10,14 @@
 
 - [x] Implement program entrypoint for starting up a single server given the overall Raft cluster information
 - [x] Implement bringing up a single server on HTTP
-- [ ] Implement the handlers for the AppendEntries and RequestVote RPCs
-- [ ] Implement election timer, heartbeat timer, log replication, and other basic components of the Raft algorithm
+- [x] Implement the HTTP handlers for the AppendEntries and RequestVote RPCs
+- [ ] Implement the core Raft algorithm
+  - [x] Actual execution of the RequestVote RPC
+  - [x] Actual execution of the AppendEntries RPC
+  - [ ] Implement the election timeout
+  - [ ] Extend the algorithm logic to account for differences in behavior between followers, candidates, and leaders
+- [ ] Make sure that persistent state on each server is persisted to stable storage before responding to RPCs
+- [ ] Add an endpoint to the server for clients to make requests on
 
 ## Verification
 
