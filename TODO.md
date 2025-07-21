@@ -14,12 +14,13 @@
 - [ ] Implement the core Raft algorithm
   - [x] Actual execution of the RequestVote RPC
   - [x] Actual execution of the AppendEntries RPC
-  - [ ] Implement the election timeout
-  - [ ] Extend the algorithm logic to account for differences in behavior between followers, candidates, and leaders
+  - [x] Implement basic logic for the election timeout
+- [ ] Implement the sending of the RequestVote RPC to all other servers in the cluster as part of the election start process (`campaignForElection`)
+- [ ] Implement promotion of a candidate to leader once the vote results are in (`promoteToLeader`)
 - [ ] Make sure that persistent state on each server is persisted to stable storage before responding to RPCs
 - [ ] Add an endpoint to the server for clients to make requests on
 
-## Verification
+## Verification/Testing
 
 - [ ] Implement a simulator to verify the correctness of the Raft implementation
 

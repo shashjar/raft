@@ -4,6 +4,8 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"sync"
+	"time"
 )
 
 type ServerState int
@@ -37,9 +39,9 @@ type RaftServer struct {
 	matchIndex []int // for each server, index of highest log entry known to be replicated on server (initialized to 0, increases monotonically)
 
 	// State for election timer
-	// electionTimeout    time.Duration
-	// electionTimer      *time.Timer
-	// electionTimerMutex sync.Mutex
+	electionTimeout    time.Duration
+	electionTimer      *time.Timer
+	electionTimerMutex sync.Mutex
 }
 
 func initializeRaftServer(serverID int, clusterMembers map[int]ServerAddress) *RaftServer {
@@ -69,12 +71,12 @@ func initializeRaftServer(serverID int, clusterMembers map[int]ServerAddress) *R
 		nextIndex:  nextIndex,
 		matchIndex: matchIndex,
 
-		// electionTimeout:    0,
-		// electionTimer:      nil,
-		// electionTimerMutex: sync.Mutex{},
+		electionTimeout:    0,
+		electionTimer:      nil,
+		electionTimerMutex: sync.Mutex{},
 	}
 
-	// server.startElectionTimer()
+	server.startOrResetElectionTimer()
 
 	return server
 }
@@ -137,7 +139,7 @@ func (s *RaftServer) handleAppendEntries(w http.ResponseWriter, r *http.Request)
 }
 
 func (s *RaftServer) executeAppendEntries(args AppendEntriesArgs) AppendEntriesResults {
-	if args.Term > s.currentTerm {
+	if args.Term >= s.currentTerm {
 		s.currentTerm = args.Term
 		s.votedFor = -1
 		s.serverState = Follower
@@ -156,7 +158,7 @@ func (s *RaftServer) executeAppendEntries(args AppendEntriesArgs) AppendEntriesR
 	}
 
 	// Reset election timer when receiving valid AppendEntries (heartbeat)
-	// s.resetElectionTimer()
+	s.startOrResetElectionTimer()
 
 	// (3) & (4)
 	s.updateLog(args.PrevLogIndex, args.Entries)
@@ -223,7 +225,7 @@ func (s *RaftServer) executeRequestVote(args RequestVoteArgs) RequestVoteResults
 	if (s.votedFor == -1 || s.votedFor == args.CandidateID) && s.candidateLogIsUpToDate(args.LastLogIndex, args.LastLogTerm) {
 		results.VoteGranted = true
 		s.votedFor = args.CandidateID
-		// s.resetElectionTimer()
+		s.startOrResetElectionTimer()
 	}
 
 	return results
