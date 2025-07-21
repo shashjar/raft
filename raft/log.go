@@ -20,8 +20,8 @@ func (s *RaftServer) candidateLogIsUpToDate(candidateLastLogIndex int, candidate
 	receiverLastLogIndex := len(s.log) - 1
 	var receiverLastLogTerm int
 
-	if receiverLastLogIndex < 0 {
-		receiverLastLogTerm = 0
+	if receiverLastLogIndex == INITIAL_INDEX {
+		receiverLastLogTerm = INITIAL_TERM
 	} else {
 		receiverLastLogTerm = s.log[receiverLastLogIndex].term
 	}
@@ -30,6 +30,10 @@ func (s *RaftServer) candidateLogIsUpToDate(candidateLastLogIndex int, candidate
 }
 
 func (s *RaftServer) logEntryExists(logIndex int, logTerm int) bool {
+	if len(s.log) == 0 && logIndex == INITIAL_INDEX {
+		return true
+	}
+
 	if logIndex < 0 || logIndex >= len(s.log) {
 		return false
 	}

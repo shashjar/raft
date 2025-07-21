@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 )
 
 type AppendEntriesArgs struct {
@@ -49,10 +51,8 @@ func (s *RaftServer) handleAppendEntries(w http.ResponseWriter, r *http.Request)
 }
 
 func (s *RaftServer) executeAppendEntries(args AppendEntriesArgs) AppendEntriesResults {
-	if args.Term >= s.currentTerm {
-		s.currentTerm = args.Term
-		s.votedFor = -1
-		s.serverState = Follower
+	if (args.Term > s.currentTerm) || (args.Term == s.currentTerm && s.serverState == Candidate) {
+		s.convertToFollower(args.Term)
 	}
 
 	results := AppendEntriesResults{Term: s.currentTerm, Success: false}
@@ -62,23 +62,62 @@ func (s *RaftServer) executeAppendEntries(args AppendEntriesArgs) AppendEntriesR
 		return results
 	}
 
+	// Reset election timer when receiving a valid AppendEntries RPC
+	s.startOrResetElectionTimer()
+
 	// (2)
-	if !s.logEntryExists(args.PrevLogIndex, args.PrevLogTerm) {
+	if len(args.Entries) > 0 && !s.logEntryExists(args.PrevLogIndex, args.PrevLogTerm) {
 		return results
 	}
-
-	// Reset election timer when receiving valid AppendEntries (heartbeat)
-	s.startOrResetElectionTimer()
 
 	// (3) & (4)
 	s.updateLog(args.PrevLogIndex, args.Entries)
 
 	// (5)
 	if args.LeaderCommit > s.commitIndex {
-		lastNewEntryIndex := max(len(s.log)-1, 0)
+		lastNewEntryIndex := len(s.log) - 1
 		s.commitIndex = min(args.LeaderCommit, lastNewEntryIndex)
 	}
 
 	results.Success = true
 	return results
+}
+
+func (s *RaftServer) sendHeartbeat(serverAddr ServerAddress) {
+	args := AppendEntriesArgs{
+		Term:         s.currentTerm,
+		LeaderID:     s.serverID,
+		PrevLogIndex: INITIAL_INDEX,
+		PrevLogTerm:  INITIAL_TERM,
+		Entries:      []LogEntry{},
+		LeaderCommit: s.commitIndex,
+	}
+
+	var results AppendEntriesResults
+	if err := makeFullRequest(serverAddr.host+":"+strconv.Itoa(serverAddr.port), &args, &results); err != nil {
+		panic(err)
+	}
+
+	if results.Term > s.currentTerm {
+		s.convertToFollower(results.Term)
+	} else if !results.Success { // A heartbeat should never fail
+		panic(fmt.Errorf("heartbeat failed"))
+	}
+}
+
+func (s *RaftServer) onHeartbeatTimeout() {
+	// Only a leader can send heartbeats
+	if s.serverState != Leader {
+		return
+	}
+
+	for serverID, serverAddr := range s.clusterAddrs {
+		if serverID == s.serverID {
+			continue
+		}
+
+		go s.sendHeartbeat(serverAddr)
+	}
+
+	s.startOrResetHeartbeatTimer()
 }

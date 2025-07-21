@@ -45,9 +45,7 @@ func (s *RaftServer) handleRequestVote(w http.ResponseWriter, r *http.Request) {
 
 func (s *RaftServer) executeRequestVote(args RequestVoteArgs) RequestVoteResults {
 	if args.Term > s.currentTerm {
-		s.currentTerm = args.Term
-		s.votedFor = -1
-		s.serverState = Follower
+		s.convertToFollower(args.Term)
 	}
 
 	results := RequestVoteResults{Term: s.currentTerm, VoteGranted: false}
@@ -70,7 +68,7 @@ func (s *RaftServer) executeRequestVote(args RequestVoteArgs) RequestVoteResults
 func (s *RaftServer) sendRequestVote(serverAddr ServerAddress) {
 	var lastLogTerm int
 	if len(s.log) == 0 {
-		lastLogTerm = 0
+		lastLogTerm = INITIAL_TERM
 	} else {
 		lastLogTerm = s.log[len(s.log)-1].term
 	}
@@ -78,7 +76,7 @@ func (s *RaftServer) sendRequestVote(serverAddr ServerAddress) {
 	args := RequestVoteArgs{
 		Term:         s.currentTerm,
 		CandidateID:  s.serverID,
-		LastLogIndex: max(len(s.log)-1, 0),
+		LastLogIndex: len(s.log) - 1,
 		LastLogTerm:  lastLogTerm,
 	}
 
@@ -88,15 +86,14 @@ func (s *RaftServer) sendRequestVote(serverAddr ServerAddress) {
 	}
 
 	if results.Term > s.currentTerm {
-		s.currentTerm = args.Term
-		s.votedFor = -1
-		s.serverState = Follower
+		s.convertToFollower(results.Term)
 	} else if results.VoteGranted {
 		s.votesMutex.Lock()
+		defer s.votesMutex.Unlock()
+
 		s.votesReceived++
 		if s.votesReceived > s.clusterSize/2 {
 			s.promoteToLeader()
 		}
-		s.votesMutex.Unlock()
 	}
 }

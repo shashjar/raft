@@ -10,6 +10,7 @@ import (
 const (
 	MIN_ELECTION_TIMEOUT_MS = 150
 	MAX_ELECTION_TIMEOUT_MS = 300
+	HEARTBEAT_TIMEOUT_MS    = 50
 )
 
 func (s *RaftServer) startOrResetElectionTimer() {
@@ -54,7 +55,6 @@ func (s *RaftServer) startElection() {
 	s.campaignForElection()
 }
 
-// TODO: implement
 /*
 Send RequestVote RPCs to all other servers in the cluster.
 
@@ -70,12 +70,44 @@ func (s *RaftServer) campaignForElection() {
 	}
 }
 
-// TODO: implement
+func (s *RaftServer) startOrResetHeartbeatTimer() {
+	if s.heartbeatTimer != nil {
+		s.heartbeatTimer.Stop()
+	}
+
+	s.heartbeatTimer = time.AfterFunc(time.Duration(HEARTBEAT_TIMEOUT_MS)*time.Millisecond, func() {
+		s.onHeartbeatTimeout()
+	})
+}
+
 func (s *RaftServer) promoteToLeader() {
 	// Only a candidate can be promoted to leader
 	if s.serverState != Candidate {
 		return
 	}
 
-	// TODO: send initial empty AppendEntries RPCs to all other servers in the cluster; repeat during idle periods to prevent election timeouts
+	s.serverState = Leader
+
+	nextIndex := make(map[int]int)
+	matchIndex := make(map[int]int)
+	for serverID := range s.clusterAddrs {
+		if serverID == s.serverID {
+			continue
+		}
+		nextIndex[serverID] = len(s.log)
+		matchIndex[serverID] = -1
+	}
+	s.nextIndex = nextIndex
+	s.matchIndex = matchIndex
+	s.startOrResetHeartbeatTimer()
+
+	s.electionTimerMutex.Lock()
+	defer s.electionTimerMutex.Unlock()
+	if s.electionTimer != nil {
+		s.electionTimer.Stop()
+	}
+	s.electionTimer = nil
+
+	// Send initial empty AppendEntries RPCs (heartbeat) to all other servers in the cluster
+	s.onHeartbeatTimeout()
 }
