@@ -34,14 +34,18 @@ type RaftServer struct {
 	commitIndex int // index of highest log entry known to be committed (initialized to 0, increases monotonically)
 	lastApplied int // index of highest log entry applied to state machine (initialized to 0, increases monotonically)
 
+	// Volatile state on candidates (reinitialized at the start of each election)
+	votesReceived int        // counter of votes that the candidate has received in the current election
+	votesMutex    sync.Mutex // mutex to protect votesReceived
+
 	// Volatile state on leaders (reinitialized after election)
 	nextIndex  []int // for each server, index of the next log entry to send to that server (initialized to leader last log index + 1)
 	matchIndex []int // for each server, index of highest log entry known to be replicated on server (initialized to 0, increases monotonically)
 
 	// State for election timer
-	electionTimeout    time.Duration
-	electionTimer      *time.Timer
-	electionTimerMutex sync.Mutex
+	electionTimeout    time.Duration // duration of the election timeout
+	electionTimer      *time.Timer   // timer for the election timeout
+	electionTimerMutex sync.Mutex    // mutex to protect the election timer
 }
 
 func initializeRaftServer(serverID int, clusterMembers map[int]ServerAddress) *RaftServer {
@@ -67,6 +71,9 @@ func initializeRaftServer(serverID int, clusterMembers map[int]ServerAddress) *R
 
 		commitIndex: 0,
 		lastApplied: 0,
+
+		votesReceived: 0,
+		votesMutex:    sync.Mutex{},
 
 		nextIndex:  nextIndex,
 		matchIndex: matchIndex,
@@ -129,13 +136,16 @@ func (s *RaftServer) handleAppendEntries(w http.ResponseWriter, r *http.Request)
 	log.Println("AppendEntries RPC received")
 
 	var args AppendEntriesArgs
-	if err := parseRequestBody(r, &args); err != nil {
+	if err := parseIncomingRequest(r, &args); err != nil {
 		http.Error(w, "Failed to parse request body", http.StatusBadRequest)
 		return
 	}
 
 	results := s.executeAppendEntries(args)
-	sendJSONResponse(w, results)
+	if err := sendOutgoingResponse(w, &results); err != nil {
+		http.Error(w, "Failed to marshal and send response", http.StatusInternalServerError)
+		return
+	}
 }
 
 func (s *RaftServer) executeAppendEntries(args AppendEntriesArgs) AppendEntriesResults {
@@ -198,13 +208,16 @@ func (s *RaftServer) handleRequestVote(w http.ResponseWriter, r *http.Request) {
 	log.Println("RequestVote RPC received")
 
 	var args RequestVoteArgs
-	if err := parseRequestBody(r, &args); err != nil {
+	if err := parseIncomingRequest(r, &args); err != nil {
 		http.Error(w, "Failed to parse request body", http.StatusBadRequest)
 		return
 	}
 
 	results := s.executeRequestVote(args)
-	sendJSONResponse(w, results)
+	if err := sendOutgoingResponse(w, &results); err != nil {
+		http.Error(w, "Failed to marshal and send response", http.StatusInternalServerError)
+		return
+	}
 }
 
 func (s *RaftServer) executeRequestVote(args RequestVoteArgs) RequestVoteResults {
@@ -229,4 +242,38 @@ func (s *RaftServer) executeRequestVote(args RequestVoteArgs) RequestVoteResults
 	}
 
 	return results
+}
+
+func (s *RaftServer) sendRequestVote(serverAddr ServerAddress) {
+	var lastLogTerm int
+	if len(s.log) == 0 {
+		lastLogTerm = 0
+	} else {
+		lastLogTerm = s.log[len(s.log)-1].term
+	}
+
+	args := RequestVoteArgs{
+		Term:         s.currentTerm,
+		CandidateID:  s.serverID,
+		LastLogIndex: max(len(s.log)-1, 0),
+		LastLogTerm:  lastLogTerm,
+	}
+
+	var results RequestVoteResults
+	if err := makeFullRequest(serverAddr.host+":"+strconv.Itoa(serverAddr.port), &args, &results); err != nil {
+		panic(err)
+	}
+
+	if results.Term > s.currentTerm {
+		s.currentTerm = args.Term
+		s.votedFor = -1
+		s.serverState = Follower
+	} else if results.VoteGranted {
+		s.votesMutex.Lock()
+		s.votesReceived++
+		if s.votesReceived > s.clusterSize/2 {
+			s.promoteToLeader()
+		}
+		s.votesMutex.Unlock()
+	}
 }

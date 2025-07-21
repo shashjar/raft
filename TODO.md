@@ -15,8 +15,10 @@
   - [x] Actual execution of the RequestVote RPC
   - [x] Actual execution of the AppendEntries RPC
   - [x] Implement basic logic for the election timeout
-- [ ] Implement the sending of the RequestVote RPC to all other servers in the cluster as part of the election start process (`campaignForElection`)
+- [x] Implement the sending of the RequestVote RPC to all other servers in the cluster as part of the election start process (`campaignForElection`)
 - [ ] Implement promotion of a candidate to leader once the vote results are in (`promoteToLeader`)
+  - [ ] The leader needs to send initial heartbeat messages to all other servers in the cluster as soon as it is elected
+  - [ ] The leader also needs to send a regular heartbeat during idle periods
 - [ ] Make sure that persistent state on each server is persisted to stable storage before responding to RPCs
 - [ ] Add an endpoint to the server for clients to make requests on
 

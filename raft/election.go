@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"math/rand"
+	"sync"
 	"time"
 )
 
@@ -45,6 +46,9 @@ func (s *RaftServer) startElection() {
 	s.currentTerm++
 	s.votedFor = s.serverID
 
+	s.votesReceived = 1
+	s.votesMutex = sync.Mutex{}
+
 	s.startOrResetElectionTimer()
 
 	s.campaignForElection()
@@ -57,8 +61,21 @@ Send RequestVote RPCs to all other servers in the cluster.
 If votes received from majority of servers: become leader.
 */
 func (s *RaftServer) campaignForElection() {
+	for serverID, serverAddr := range s.clusterAddrs {
+		if serverID == s.serverID {
+			continue
+		}
+
+		go s.sendRequestVote(serverAddr)
+	}
 }
 
 // TODO: implement
 func (s *RaftServer) promoteToLeader() {
+	// Only a candidate can be promoted to leader
+	if s.serverState != Candidate {
+		return
+	}
+
+	// TODO: send initial empty AppendEntries RPCs to all other servers in the cluster; repeat during idle periods to prevent election timeouts
 }

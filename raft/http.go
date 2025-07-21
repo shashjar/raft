@@ -1,31 +1,62 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"net/http"
 )
 
 // Helper method to read HTTP request body and unmarshal it into a struct
-func parseRequestBody(r *http.Request, v interface{}) error {
+func parseIncomingRequest(r *http.Request, v interface{}) error {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		return err
 	}
 	defer r.Body.Close()
 
-	return json.Unmarshal(body, v)
+	if err := json.Unmarshal(body, v); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Helper method to marshal data into JSON and send it as a response
-func sendJSONResponse(w http.ResponseWriter, data interface{}) {
+func sendOutgoingResponse(w http.ResponseWriter, data interface{}) error {
 	responseBytes, err := json.Marshal(data)
 	if err != nil {
-		http.Error(w, "Failed to marshal response", http.StatusInternalServerError)
-		return
+		return err
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(responseBytes)
+
+	return nil
+}
+
+// Helper method to make an HTTP request to a server and unmarshal the response into a struct
+func makeFullRequest(serverAddr string, args interface{}, results interface{}) error {
+	reqBody, err := json.Marshal(args)
+	if err != nil {
+		return err
+	}
+
+	resp, err := http.Post(serverAddr, "application/json", bytes.NewBuffer(reqBody))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	if err := json.Unmarshal(respBody, &results); err != nil {
+		return err
+	}
+
+	return nil
 }
