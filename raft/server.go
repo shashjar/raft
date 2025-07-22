@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -20,6 +21,8 @@ const (
 	INITIAL_TERM  = 0
 	INITIAL_INDEX = -1
 )
+
+const DEBUG = true
 
 type RaftServer struct {
 	mu sync.Mutex // mutex to protect concurrent access to the server's state
@@ -100,14 +103,17 @@ func StartServer(serverID int, clusterMembers map[int]ServerAddress) {
 
 	// Bring up the server to begin listening for RPCs
 	addr := clusterMembers[serverID]
-	log.Println("Raft server listening on port", addr.port)
+	server.dlog("Raft server listening on port %d", addr.port)
 	err := http.ListenAndServe(addr.host+":"+strconv.Itoa(addr.port), nil)
 	if err != nil {
-		log.Fatalf("Failed to start Raft server: %v", err)
+		server.dlog("Failed to begin serving Raft server: %v", err)
+		panic(err)
 	}
 }
 
 func (s *RaftServer) convertToFollower(newTerm int) {
+	s.dlog("Converting to follower with new term %d", newTerm)
+
 	s.serverState = Follower
 
 	s.currentTerm = newTerm
@@ -122,4 +128,11 @@ func (s *RaftServer) convertToFollower(newTerm int) {
 	s.heartbeatTimer = nil
 
 	s.StartOrResetElectionTimer()
+}
+
+func (s *RaftServer) dlog(format string, args ...interface{}) {
+	if DEBUG {
+		format = fmt.Sprintf("[%d] ", s.serverID) + format
+		log.Printf(format, args...)
+	}
 }

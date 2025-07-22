@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"net/http"
 	"strconv"
 )
@@ -28,19 +27,21 @@ Receiver implementation:
 2. If votedFor is null or candidateId, and candidate's log is at least as up-to-date as receiver's log, grant vote
 */
 func (s *RaftServer) HandleRequestVote(w http.ResponseWriter, r *http.Request) {
-	log.Println("RequestVote RPC received")
-
 	var args RequestVoteArgs
 	if err := parseIncomingRequest(r, &args); err != nil {
 		http.Error(w, "Failed to parse request body", http.StatusBadRequest)
 		return
 	}
 
+	s.dlog("RequestVote received: %+v", args)
+
 	results := s.executeRequestVote(args)
 	if err := sendOutgoingResponse(w, &results); err != nil {
 		http.Error(w, "Failed to marshal and send response", http.StatusInternalServerError)
 		return
 	}
+
+	s.dlog("RequestVote response: %+v", results)
 }
 
 func (s *RaftServer) executeRequestVote(args RequestVoteArgs) RequestVoteResults {

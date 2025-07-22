@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"math/rand"
 	"time"
 )
@@ -28,7 +27,7 @@ func (s *RaftServer) StartOrResetElectionTimer() {
 }
 
 func (s *RaftServer) onElectionTimeout() {
-	log.Printf("Server %d: Election timeout occurred", s.serverID)
+	s.dlog("Election timeout occurred")
 
 	s.mu.Lock()
 
@@ -80,6 +79,8 @@ func (s *RaftServer) promoteToLeader() {
 	if s.serverState != Candidate {
 		return
 	}
+
+	s.dlog("Promoting to leader")
 
 	s.serverState = Leader
 

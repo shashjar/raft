@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"net/http"
 )
 
@@ -33,19 +32,21 @@ Receiver implementation:
 5. If leaderCommit > commitIndex, set commitIndex = min(leaderCommit, index of last new entry)
 */
 func (s *RaftServer) HandleAppendEntries(w http.ResponseWriter, r *http.Request) {
-	log.Println("AppendEntries RPC received")
-
 	var args AppendEntriesArgs
 	if err := parseIncomingRequest(r, &args); err != nil {
 		http.Error(w, "Failed to parse request body", http.StatusBadRequest)
 		return
 	}
 
+	s.dlog("AppendEntries received: %+v", args)
+
 	results := s.executeAppendEntries(args)
 	if err := sendOutgoingResponse(w, &results); err != nil {
 		http.Error(w, "Failed to marshal and send response", http.StatusInternalServerError)
 		return
 	}
+
+	s.dlog("AppendEntries response: %+v", results)
 }
 
 func (s *RaftServer) executeAppendEntries(args AppendEntriesArgs) AppendEntriesResults {

@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"strconv"
 	"time"
 )
@@ -21,7 +20,7 @@ func (s *RaftServer) StartOrResetHeartbeatTimer() {
 }
 
 func (s *RaftServer) onHeartbeatTimeout() {
-	log.Printf("Server %d: Heartbeat timeout occurred", s.serverID)
+	s.dlog("Heartbeat timeout occurred")
 
 	s.mu.Lock()
 
