@@ -6,6 +6,8 @@ import (
 	"time"
 )
 
+const HEARTBEAT_TIMEOUT_MS = 50
+
 func (s *RaftServer) StartOrResetHeartbeatTimer() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -30,6 +32,8 @@ func (s *RaftServer) onHeartbeatTimeout() {
 		return
 	}
 
+	heartbeatTerm := s.currentTerm
+
 	s.mu.Unlock()
 
 	for serverID, serverAddr := range s.clusterAddrs {
@@ -37,18 +41,18 @@ func (s *RaftServer) onHeartbeatTimeout() {
 			continue
 		}
 
-		go s.sendHeartbeat(serverAddr)
+		go s.sendHeartbeat(serverAddr, heartbeatTerm)
 	}
 
 	s.StartOrResetHeartbeatTimer()
 }
 
 // TODO: replace this with a call to a sendAppendEntries function that can send any slice of log entries
-func (s *RaftServer) sendHeartbeat(serverAddr ServerAddress) {
+func (s *RaftServer) sendHeartbeat(serverAddr ServerAddress, heartbeatTerm int) {
 	s.mu.Lock()
 
 	args := AppendEntriesArgs{
-		Term:         s.currentTerm,
+		Term:         heartbeatTerm,
 		LeaderID:     s.serverID,
 		PrevLogIndex: INITIAL_INDEX,
 		PrevLogTerm:  INITIAL_TERM,
@@ -66,7 +70,7 @@ func (s *RaftServer) sendHeartbeat(serverAddr ServerAddress) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if results.Term > s.currentTerm {
+	if results.Term > heartbeatTerm {
 		s.convertToFollower(results.Term)
 	} else if !results.Success { // A heartbeat should never fail
 		panic(fmt.Errorf("heartbeat failed"))

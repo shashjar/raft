@@ -8,10 +8,11 @@ import (
 const (
 	MIN_ELECTION_TIMEOUT_MS = 150
 	MAX_ELECTION_TIMEOUT_MS = 300
-	HEARTBEAT_TIMEOUT_MS    = 50
 )
 
 func (s *RaftServer) StartOrResetElectionTimer() {
+	termAtElectionTimerStart := s.currentTerm
+
 	// Select a random election timeout
 	s.electionTimeout = time.Duration(MIN_ELECTION_TIMEOUT_MS+rand.Intn(MAX_ELECTION_TIMEOUT_MS-MIN_ELECTION_TIMEOUT_MS+1)) * time.Millisecond
 
@@ -22,11 +23,13 @@ func (s *RaftServer) StartOrResetElectionTimer() {
 
 	// Start new timer
 	s.electionTimer = time.AfterFunc(s.electionTimeout, func() {
-		s.onElectionTimeout()
+		s.onElectionTimeout(termAtElectionTimerStart)
 	})
+
+	s.dlog("Election timer started (%dms), term=%d", s.electionTimeout/time.Millisecond, termAtElectionTimerStart)
 }
 
-func (s *RaftServer) onElectionTimeout() {
+func (s *RaftServer) onElectionTimeout(termAtElectionTimerStart int) {
 	s.dlog("Election timeout occurred")
 
 	s.mu.Lock()
@@ -37,6 +40,10 @@ func (s *RaftServer) onElectionTimeout() {
 		return
 	}
 
+	if termAtElectionTimerStart != s.currentTerm {
+		s.mu.Unlock()
+		return
+	}
 	s.mu.Unlock()
 
 	s.startElection()
@@ -48,6 +55,7 @@ func (s *RaftServer) startElection() {
 
 	s.serverState = Candidate
 	s.currentTerm++
+	electionTerm := s.currentTerm
 	s.votedFor = s.serverID
 
 	s.votesReceived = 1
@@ -56,7 +64,7 @@ func (s *RaftServer) startElection() {
 
 	s.mu.Unlock()
 
-	s.campaignForElection()
+	s.campaignForElection(electionTerm)
 }
 
 /*
@@ -64,13 +72,13 @@ Send RequestVote RPCs to all other servers in the cluster.
 
 If votes received from majority of servers: become leader.
 */
-func (s *RaftServer) campaignForElection() {
+func (s *RaftServer) campaignForElection(electionTerm int) {
 	for serverID, serverAddr := range s.clusterAddrs {
 		if serverID == s.serverID {
 			continue
 		}
 
-		go s.SendRequestVote(serverAddr)
+		go s.SendRequestVote(serverAddr, electionTerm)
 	}
 }
 
@@ -80,7 +88,7 @@ func (s *RaftServer) promoteToLeader() {
 		return
 	}
 
-	s.dlog("Promoting to leader")
+	s.dlog("Promoting to leader in term %d", s.currentTerm)
 
 	s.serverState = Leader
 
@@ -96,13 +104,11 @@ func (s *RaftServer) promoteToLeader() {
 	s.nextIndex = nextIndex
 	s.matchIndex = matchIndex
 
-	s.StartOrResetHeartbeatTimer()
-
 	if s.electionTimer != nil {
 		s.electionTimer.Stop()
 	}
 	s.electionTimer = nil
 
-	// Send initial empty AppendEntries RPCs (heartbeat) to all other servers in the cluster
+	// Send initial empty AppendEntries RPCs (heartbeat) to all other servers in the cluster, and then continue regular heartbeats after that
 	s.onHeartbeatTimeout()
 }

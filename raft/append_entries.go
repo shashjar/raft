@@ -22,7 +22,7 @@ type AppendEntriesResults struct {
 /*
 AppendEntries RPC handler
 
-Invoked by leader to replicate log entries; also used as heartbeat
+Invoked by leader to replicate log entries; also used as heartbeat.
 
 Receiver implementation:
 1. Reply false if term < currentTerm
@@ -53,10 +53,6 @@ func (s *RaftServer) executeAppendEntries(args AppendEntriesArgs) AppendEntriesR
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if (args.Term > s.currentTerm) || (args.Term == s.currentTerm && s.serverState == Candidate) {
-		s.convertToFollower(args.Term)
-	}
-
 	results := AppendEntriesResults{Term: s.currentTerm, Success: false}
 
 	// (1)
@@ -64,11 +60,15 @@ func (s *RaftServer) executeAppendEntries(args AppendEntriesArgs) AppendEntriesR
 		return results
 	}
 
+	if args.Term > s.currentTerm || (args.Term == s.currentTerm && s.serverState == Candidate) {
+		s.convertToFollower(args.Term)
+	}
+
 	// Reset election timer when receiving a valid AppendEntries RPC
 	s.StartOrResetElectionTimer()
 
 	// (2)
-	if len(args.Entries) > 0 && !s.logEntryExists(args.PrevLogIndex, args.PrevLogTerm) {
+	if !s.logEntryExists(args.PrevLogIndex, args.PrevLogTerm) {
 		return results
 	}
 

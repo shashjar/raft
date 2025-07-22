@@ -20,7 +20,7 @@ type RequestVoteResults struct {
 /*
 RequestVote RPC handler
 
-# Invoked by candidates to gather votes
+Invoked by candidates to gather votes.
 
 Receiver implementation:
 1. Reply false if term < currentTerm
@@ -69,7 +69,7 @@ func (s *RaftServer) executeRequestVote(args RequestVoteArgs) RequestVoteResults
 	return results
 }
 
-func (s *RaftServer) SendRequestVote(serverAddr ServerAddress) {
+func (s *RaftServer) SendRequestVote(serverAddr ServerAddress, electionTerm int) {
 	s.mu.Lock()
 
 	var lastLogTerm int
@@ -80,7 +80,7 @@ func (s *RaftServer) SendRequestVote(serverAddr ServerAddress) {
 	}
 
 	args := RequestVoteArgs{
-		Term:         s.currentTerm,
+		Term:         electionTerm,
 		CandidateID:  s.serverID,
 		LastLogIndex: len(s.log) - 1,
 		LastLogTerm:  lastLogTerm,
