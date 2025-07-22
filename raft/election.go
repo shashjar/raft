@@ -3,7 +3,6 @@ package main
 import (
 	"log"
 	"math/rand"
-	"sync"
 	"time"
 )
 
@@ -13,10 +12,7 @@ const (
 	HEARTBEAT_TIMEOUT_MS    = 50
 )
 
-func (s *RaftServer) startOrResetElectionTimer() {
-	s.electionTimerMutex.Lock()
-	defer s.electionTimerMutex.Unlock()
-
+func (s *RaftServer) StartOrResetElectionTimer() {
 	// Select a random election timeout
 	s.electionTimeout = time.Duration(MIN_ELECTION_TIMEOUT_MS+rand.Intn(MAX_ELECTION_TIMEOUT_MS-MIN_ELECTION_TIMEOUT_MS+1)) * time.Millisecond
 
@@ -32,25 +28,34 @@ func (s *RaftServer) startOrResetElectionTimer() {
 }
 
 func (s *RaftServer) onElectionTimeout() {
+	log.Printf("Server %d: Election timeout occurred", s.serverID)
+
+	s.mu.Lock()
+
 	// An election timeout only matters if we're a follower or candidate
 	if s.serverState == Leader {
+		s.mu.Unlock()
 		return
 	}
 
-	log.Printf("Server %d: Election timeout occurred", s.serverID)
+	s.mu.Unlock()
+
 	s.startElection()
 }
 
 // Conver to candidate and start election
 func (s *RaftServer) startElection() {
+	s.mu.Lock()
+
 	s.serverState = Candidate
 	s.currentTerm++
 	s.votedFor = s.serverID
 
 	s.votesReceived = 1
-	s.votesMutex = sync.Mutex{}
 
-	s.startOrResetElectionTimer()
+	s.StartOrResetElectionTimer()
+
+	s.mu.Unlock()
 
 	s.campaignForElection()
 }
@@ -66,18 +71,8 @@ func (s *RaftServer) campaignForElection() {
 			continue
 		}
 
-		go s.sendRequestVote(serverAddr)
+		go s.SendRequestVote(serverAddr)
 	}
-}
-
-func (s *RaftServer) startOrResetHeartbeatTimer() {
-	if s.heartbeatTimer != nil {
-		s.heartbeatTimer.Stop()
-	}
-
-	s.heartbeatTimer = time.AfterFunc(time.Duration(HEARTBEAT_TIMEOUT_MS)*time.Millisecond, func() {
-		s.onHeartbeatTimeout()
-	})
 }
 
 func (s *RaftServer) promoteToLeader() {
@@ -99,10 +94,9 @@ func (s *RaftServer) promoteToLeader() {
 	}
 	s.nextIndex = nextIndex
 	s.matchIndex = matchIndex
-	s.startOrResetHeartbeatTimer()
 
-	s.electionTimerMutex.Lock()
-	defer s.electionTimerMutex.Unlock()
+	s.StartOrResetHeartbeatTimer()
+
 	if s.electionTimer != nil {
 		s.electionTimer.Stop()
 	}

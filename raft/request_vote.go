@@ -27,7 +27,7 @@ Receiver implementation:
 1. Reply false if term < currentTerm
 2. If votedFor is null or candidateId, and candidate's log is at least as up-to-date as receiver's log, grant vote
 */
-func (s *RaftServer) handleRequestVote(w http.ResponseWriter, r *http.Request) {
+func (s *RaftServer) HandleRequestVote(w http.ResponseWriter, r *http.Request) {
 	log.Println("RequestVote RPC received")
 
 	var args RequestVoteArgs
@@ -44,6 +44,9 @@ func (s *RaftServer) handleRequestVote(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *RaftServer) executeRequestVote(args RequestVoteArgs) RequestVoteResults {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	if args.Term > s.currentTerm {
 		s.convertToFollower(args.Term)
 	}
@@ -59,13 +62,15 @@ func (s *RaftServer) executeRequestVote(args RequestVoteArgs) RequestVoteResults
 	if (s.votedFor == -1 || s.votedFor == args.CandidateID) && s.candidateLogIsUpToDate(args.LastLogIndex, args.LastLogTerm) {
 		results.VoteGranted = true
 		s.votedFor = args.CandidateID
-		s.startOrResetElectionTimer()
+		s.StartOrResetElectionTimer()
 	}
 
 	return results
 }
 
-func (s *RaftServer) sendRequestVote(serverAddr ServerAddress) {
+func (s *RaftServer) SendRequestVote(serverAddr ServerAddress) {
+	s.mu.Lock()
+
 	var lastLogTerm int
 	if len(s.log) == 0 {
 		lastLogTerm = INITIAL_TERM
@@ -80,17 +85,19 @@ func (s *RaftServer) sendRequestVote(serverAddr ServerAddress) {
 		LastLogTerm:  lastLogTerm,
 	}
 
+	s.mu.Unlock()
+
 	var results RequestVoteResults
 	if err := makeFullRequest(serverAddr.host+":"+strconv.Itoa(serverAddr.port), &args, &results); err != nil {
 		panic(err)
 	}
 
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	if results.Term > s.currentTerm {
 		s.convertToFollower(results.Term)
 	} else if results.VoteGranted {
-		s.votesMutex.Lock()
-		defer s.votesMutex.Unlock()
-
 		s.votesReceived++
 		if s.votesReceived > s.clusterSize/2 {
 			s.promoteToLeader()

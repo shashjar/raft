@@ -85,5 +85,5 @@ func main() {
 	log.Printf("Starting Raft server ID=%d on port=%d", serverID, port)
 	log.Printf("Cluster size: %d", len(clusterMembers))
 
-	startServer(serverID, clusterMembers)
+	StartServer(serverID, clusterMembers)
 }

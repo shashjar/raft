@@ -7,7 +7,7 @@ import (
 	"net/http"
 )
 
-// Helper method to read HTTP request body and unmarshal it into a struct
+// Helper function to read HTTP request body and unmarshal it into a struct
 func parseIncomingRequest(r *http.Request, v interface{}) error {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -22,7 +22,7 @@ func parseIncomingRequest(r *http.Request, v interface{}) error {
 	return nil
 }
 
-// Helper method to marshal data into JSON and send it as a response
+// Helper function to marshal data into JSON and send it as a response
 func sendOutgoingResponse(w http.ResponseWriter, data interface{}) error {
 	responseBytes, err := json.Marshal(data)
 	if err != nil {
@@ -36,7 +36,7 @@ func sendOutgoingResponse(w http.ResponseWriter, data interface{}) error {
 	return nil
 }
 
-// Helper method to make an HTTP request to a server and unmarshal the response into a struct
+// Helper function to make an HTTP request to a server and unmarshal the response into a struct
 func makeFullRequest(serverAddr string, args interface{}, results interface{}) error {
 	reqBody, err := json.Marshal(args)
 	if err != nil {

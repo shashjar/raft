@@ -19,9 +19,10 @@
 - [x] Implement promotion of a candidate to leader once the vote results are in (`promoteToLeader`)
   - [x] The leader needs to send initial heartbeat messages to all other servers in the cluster as soon as it is elected
   - [x] The leader also needs to send a regular heartbeat during idle periods
+- [x] Update the mutex on the `RaftServer` struct to protect all writes/reads of server state
+- [ ] Add an endpoint to the server for clients to make requests on
 - [ ] Implement sending of actual AppendEntries RPCs (not just heartbeats) by the leader
 - [ ] Make sure that persistent state on each server is persisted to stable storage before responding to RPCs
-- [ ] Add an endpoint to the server for clients to make requests on
 
 ## Verification/Testing
 
