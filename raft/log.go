@@ -6,9 +6,9 @@ import (
 )
 
 type LogEntry struct {
-	// TODO: command is just a string for now - add actual commands later
-	command string // command for state machine
-	term    int    // term when entry was received by leader
+	// TODO: Command is just a string for now - add actual commands later
+	Command string // command for state machine
+	Term    int    // term when entry was received by leader
 }
 
 type SubmitCommandArgs struct {
@@ -27,15 +27,19 @@ func (s *RaftServer) HandleSubmitCommand(w http.ResponseWriter, r *http.Request)
 		http.Error(w, "Failed to parse request body", http.StatusBadRequest)
 		return
 	}
-
 	s.dlog("SubmitCommand received: %+v", args)
 
 	results := s.executeSubmitCommand(args)
+
+	if err := s.persistToStableStorage(); err != nil {
+		s.dlog("Error persisting to stable storage: %v", err)
+		results.Success = false
+	}
+
 	if err := sendOutgoingResponse(w, &results); err != nil {
 		http.Error(w, "Failed to marshal and send response", http.StatusInternalServerError)
 		return
 	}
-
 	s.dlog("SubmitCommand response: %+v", results)
 }
 
@@ -50,7 +54,7 @@ func (s *RaftServer) executeSubmitCommand(args SubmitCommandArgs) SubmitCommandR
 		return results
 	}
 
-	s.log = append(s.log, LogEntry{command: args.Command, term: s.currentTerm})
+	s.log = append(s.log, LogEntry{Command: args.Command, Term: s.currentTerm})
 
 	logIndex := len(s.log) - 1
 	commandChan := make(chan bool, 1)
@@ -101,7 +105,7 @@ func (s *RaftServer) checkAndUpdateCommitIndex() {
 		}
 
 		majority := (s.clusterSize / 2) + 1
-		if replicatedCount >= majority && s.log[i].term == s.currentTerm {
+		if replicatedCount >= majority && s.log[i].Term == s.currentTerm {
 			oldCommitIndex := s.commitIndex
 			s.commitIndex = i
 
@@ -127,7 +131,7 @@ func (s *RaftServer) applyCommittedEntries() {
 	for s.lastApplied < s.commitIndex {
 		s.lastApplied++
 		entry := s.log[s.lastApplied]
-		s.applyCommandToStateMachine(entry.command)
+		s.applyCommandToStateMachine(entry.Command)
 	}
 }
 
@@ -154,7 +158,7 @@ func (s *RaftServer) candidateLogIsUpToDate(candidateLastLogIndex int, candidate
 	if receiverLastLogIndex == INITIAL_INDEX {
 		receiverLastLogTerm = INITIAL_TERM
 	} else {
-		receiverLastLogTerm = s.log[receiverLastLogIndex].term
+		receiverLastLogTerm = s.log[receiverLastLogIndex].Term
 	}
 
 	return candidateLastLogTerm > receiverLastLogTerm || (candidateLastLogTerm == receiverLastLogTerm && candidateLastLogIndex >= receiverLastLogIndex)
@@ -170,7 +174,7 @@ func (s *RaftServer) logEntryExists(logIndex int, logTerm int) bool {
 	}
 
 	entry := s.log[logIndex]
-	return entry.term == logTerm
+	return entry.Term == logTerm
 }
 
 func (s *RaftServer) updateLog(prevLogIndex int, newEntries []LogEntry) {
@@ -183,7 +187,7 @@ func (s *RaftServer) updateLog(prevLogIndex int, newEntries []LogEntry) {
 	conflictIndex := -1
 	for i, entry := range newEntries {
 		logIndex := prevLogIndex + 1 + i
-		if logIndex < len(s.log) && s.log[logIndex].term != entry.term {
+		if logIndex < len(s.log) && s.log[logIndex].Term != entry.Term {
 			conflictIndex = logIndex
 			break
 		}

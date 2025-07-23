@@ -42,7 +42,8 @@
 
 ### Persistence
 
-- [ ] Make sure that persistent state on each server is persisted to stable storage before responding to RPCs
+- [x] Make sure that persistent state on each server is persisted to stable storage before responding to RPCs
+- [x] On startup, load the persistent state from disk if it's available
 
 ## Verification/Testing
 

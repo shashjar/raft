@@ -58,7 +58,7 @@ type RaftServer struct {
 	pendingCommands map[int]chan bool // map of log index to channel for signaling when entry is committed
 	heartbeatTimer  *time.Timer       // timer for the heartbeat timeout
 
-	// State for election timer
+	// State for election timer (followers and candidates, volatile)
 	electionTimeout time.Duration // duration of the election timeout
 	electionTimer   *time.Timer   // timer for the election timeout
 }
@@ -95,6 +95,15 @@ func InitializeRaftServer(serverID int, clusterMembers map[int]ServerAddress) *R
 
 	server.mu.Lock()
 	defer server.mu.Unlock()
+
+	persistentState, err := loadFromStableStorage()
+	if err == nil {
+		server.dlog("Loaded persistent state from stable storage")
+		server.currentTerm = persistentState.currentTerm
+		server.votedFor = persistentState.votedFor
+		server.log = persistentState.log
+	}
+
 	server.StartOrResetElectionTimer()
 
 	return server

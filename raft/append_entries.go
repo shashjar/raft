@@ -39,15 +39,19 @@ func (s *RaftServer) HandleAppendEntries(w http.ResponseWriter, r *http.Request)
 		http.Error(w, "Failed to parse request body", http.StatusBadRequest)
 		return
 	}
-
 	s.dlog("AppendEntries received: %+v", args)
 
 	results := s.executeAppendEntries(args)
+
+	if err := s.persistToStableStorage(); err != nil {
+		s.dlog("Error persisting to stable storage: %v", err)
+		results.Success = false
+	}
+
 	if err := sendOutgoingResponse(w, &results); err != nil {
 		http.Error(w, "Failed to marshal and send response", http.StatusInternalServerError)
 		return
 	}
-
 	s.dlog("AppendEntries response: %+v", results)
 }
 
@@ -103,7 +107,7 @@ func (s *RaftServer) SendAppendEntries(serverAddr ServerAddress) {
 		prevLogIndex := nextIndex - 1
 		prevLogTerm := INITIAL_TERM
 		if prevLogIndex >= 0 {
-			prevLogTerm = s.log[prevLogIndex].term
+			prevLogTerm = s.log[prevLogIndex].Term
 		}
 
 		newEntries := s.log[nextIndex:]

@@ -32,15 +32,19 @@ func (s *RaftServer) HandleRequestVote(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to parse request body", http.StatusBadRequest)
 		return
 	}
-
 	s.dlog("RequestVote received: %+v", args)
 
 	results := s.executeRequestVote(args)
+
+	if err := s.persistToStableStorage(); err != nil {
+		s.dlog("Error persisting to stable storage: %v", err)
+		results.VoteGranted = false
+	}
+
 	if err := sendOutgoingResponse(w, &results); err != nil {
 		http.Error(w, "Failed to marshal and send response", http.StatusInternalServerError)
 		return
 	}
-
 	s.dlog("RequestVote response: %+v", results)
 }
 
@@ -76,7 +80,7 @@ func (s *RaftServer) SendRequestVote(serverAddr ServerAddress, electionTerm int)
 	if len(s.log) == 0 {
 		lastLogTerm = INITIAL_TERM
 	} else {
-		lastLogTerm = s.log[len(s.log)-1].term
+		lastLogTerm = s.log[len(s.log)-1].Term
 	}
 
 	args := RequestVoteArgs{
