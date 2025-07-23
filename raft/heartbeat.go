@@ -63,7 +63,7 @@ func (s *RaftServer) sendHeartbeat(serverAddr ServerAddress, heartbeatTerm int) 
 	s.mu.Unlock()
 
 	var results AppendEntriesResults
-	if err := makeFullRequest(serverAddr.host+":"+strconv.Itoa(serverAddr.port), &args, &results); err != nil {
+	if err := makeFullRequest(serverAddr.host+":"+strconv.Itoa(serverAddr.port), APPEND_ENTRIES_PATH, &args, &results); err != nil {
 		panic(err)
 	}
 

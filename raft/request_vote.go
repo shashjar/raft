@@ -89,7 +89,7 @@ func (s *RaftServer) SendRequestVote(serverAddr ServerAddress, electionTerm int)
 	s.mu.Unlock()
 
 	var results RequestVoteResults
-	if err := makeFullRequest(serverAddr.host+":"+strconv.Itoa(serverAddr.port), &args, &results); err != nil {
+	if err := makeFullRequest(serverAddr.host+":"+strconv.Itoa(serverAddr.port), REQUEST_VOTE_PATH, &args, &results); err != nil {
 		panic(err)
 	}
 

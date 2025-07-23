@@ -14,6 +14,7 @@ const (
 )
 
 type ServerAddress struct {
+	id   int
 	host string
 	port int
 }
@@ -23,7 +24,7 @@ func configureLogger() {
 }
 
 func parseClusterMembers(clusterStr string) (map[int]ServerAddress, error) {
-	// Expected format: "1:localhost:8081,2:localhost:8082,3:localhost:8083"
+	// Expected format for a 3-server cluster: "1:localhost:8081,2:localhost:8082,3:localhost:8083"
 	members := make(map[int]ServerAddress)
 
 	if clusterStr == "" {
@@ -48,6 +49,7 @@ func parseClusterMembers(clusterStr string) (map[int]ServerAddress, error) {
 		}
 
 		members[serverID] = ServerAddress{
+			id:   serverID,
 			host: parts[1],
 			port: port,
 		}

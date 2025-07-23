@@ -37,13 +37,13 @@ func sendOutgoingResponse(w http.ResponseWriter, data interface{}) error {
 }
 
 // Helper function to make an HTTP request to a server and unmarshal the response into a struct
-func makeFullRequest(serverAddr string, args interface{}, results interface{}) error {
+func makeFullRequest(serverAddr string, path string, args interface{}, results interface{}) error {
 	reqBody, err := json.Marshal(args)
 	if err != nil {
 		return err
 	}
 
-	resp, err := http.Post(serverAddr, "application/json", bytes.NewBuffer(reqBody))
+	resp, err := http.Post(serverAddr+path, "application/json", bytes.NewBuffer(reqBody))
 	if err != nil {
 		return err
 	}

@@ -22,6 +22,12 @@ const (
 	INITIAL_INDEX = -1
 )
 
+const (
+	APPEND_ENTRIES_PATH = "/appendEntries"
+	REQUEST_VOTE_PATH   = "/requestVote"
+	SUBMIT_COMMAND_PATH = "/submitCommand"
+)
+
 const DEBUG = true
 
 type RaftServer struct {
@@ -98,8 +104,8 @@ func StartServer(serverID int, clusterMembers map[int]ServerAddress) {
 	server := InitializeRaftServer(serverID, clusterMembers)
 
 	// Register HTTP handlers for Raft RPCs
-	http.HandleFunc("/appendEntries", server.HandleAppendEntries)
-	http.HandleFunc("/requestVote", server.HandleRequestVote)
+	http.HandleFunc(APPEND_ENTRIES_PATH, server.HandleAppendEntries)
+	http.HandleFunc(REQUEST_VOTE_PATH, server.HandleRequestVote)
 
 	// Bring up the server to begin listening for RPCs
 	addr := clusterMembers[serverID]
