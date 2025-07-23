@@ -31,11 +31,11 @@ func parseClusterMembers(clusterStr string) (map[int]ServerAddress, error) {
 		return nil, fmt.Errorf("cluster configuration is empty")
 	}
 
-	pairs := strings.Split(clusterStr, ",")
-	for _, pair := range pairs {
-		parts := strings.Split(pair, ":")
+	serversInfo := strings.Split(clusterStr, ",")
+	for _, serverInfo := range serversInfo {
+		parts := strings.Split(serverInfo, ":")
 		if len(parts) != 3 {
-			return nil, fmt.Errorf("invalid cluster member format: %s", pair)
+			return nil, fmt.Errorf("invalid cluster member format: %s", serverInfo)
 		}
 
 		serverID, err := strconv.Atoi(parts[0])
@@ -53,6 +53,10 @@ func parseClusterMembers(clusterStr string) (map[int]ServerAddress, error) {
 			host: parts[1],
 			port: port,
 		}
+	}
+
+	if len(members) != len(serversInfo) {
+		return nil, fmt.Errorf("duplicate server IDs found in cluster configuration: %s", clusterStr)
 	}
 
 	return members, nil
