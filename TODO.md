@@ -6,7 +6,7 @@
 - [x] Set up Go codebase
 - [x] Plan out structure of Raft implementation
 
-## Implementation
+## Core Raft Algorithm Implementation
 
 ### Setup
 
@@ -44,6 +44,22 @@
 
 - [x] Make sure that persistent state on each server is persisted to stable storage before responding to RPCs
 - [x] On startup, load the persistent state from disk if it's available
+
+### Optimizations
+
+- [ ] If a client makes a request to a non-leader server in the cluster, redirect that client to the actual leader
+- [ ] Improve conflict resolution for when the leader needs to send earlier entries to a specific follower (include the actual latest index/term in a follower's response to an `AppendEntries` RPC)
+
+## Raft-Backed Service (Key/Value Database)
+
+- [ ] Implement a key/value database backed by the Raft algorithm implemented thus far
+  - [ ] Expand/extend the `LogEntry`, `SubmitCommandArgs`, and `SubmitCommandResults` schemas
+  - [ ] Support commands `PUT(k, v)`, `GET(k)`, and `CAS(k, cmp, v)` (atomic compare-and-swap)
+  - [ ] Apply commands to the state machine once those commands are committed
+
+## Finalization of Implementation
+
+- [ ] Go through entire [Raft whitepaper](https://raft.github.io/raft.pdf) again to make sure Raft algorithm specification is correctly and completely implemented
 
 ## Verification/Testing
 

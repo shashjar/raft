@@ -39,7 +39,6 @@ type RaftServer struct {
 
 	serverState ServerState // current state of this server
 
-	// TODO: this state needs to be persisted to disk before responding to RPCs
 	// Persistent state on all servers (updated on stable storage before responding to RPCs)
 	currentTerm int        // latest term server has seen (initialized to 0 on first boot, increases monotonically)
 	votedFor    int        // candidateId that received vote in current term (-1 if none)

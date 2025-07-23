@@ -74,6 +74,7 @@ func (s *RaftServer) executeAppendEntries(args AppendEntriesArgs) AppendEntriesR
 	s.StartOrResetElectionTimer()
 
 	// (2)
+	// TODO: in this case, could respond to the leader with the actual previous log index and term to make the retry more efficient (described at the end of section 5.3)
 	if !s.logEntryExists(args.PrevLogIndex, args.PrevLogTerm) {
 		return results
 	}
