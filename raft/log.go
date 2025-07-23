@@ -161,11 +161,11 @@ func (s *RaftServer) candidateLogIsUpToDate(candidateLastLogIndex int, candidate
 }
 
 func (s *RaftServer) logEntryExists(logIndex int, logTerm int) bool {
-	if len(s.log) == 0 && logIndex == INITIAL_INDEX {
+	if logIndex == INITIAL_INDEX {
 		return true
 	}
 
-	if logIndex < 0 || logIndex >= len(s.log) {
+	if logIndex >= len(s.log) {
 		return false
 	}
 

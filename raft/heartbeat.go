@@ -47,11 +47,9 @@ func (s *RaftServer) onHeartbeatTimeout() {
 	s.StartOrResetHeartbeatTimer()
 }
 
-// TODO: replace this with a call to a sendAppendEntries function that can send any slice of log entries
 func (s *RaftServer) sendHeartbeat(serverAddr ServerAddress, heartbeatTerm int) {
 	s.mu.Lock()
 
-	// TODO: using INITIAL_INDEX and INITIAL_TERM might not work
 	args := AppendEntriesArgs{
 		Term:         heartbeatTerm,
 		LeaderID:     s.serverID,

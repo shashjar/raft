@@ -45,7 +45,6 @@ type RaftServer struct {
 	votedFor    int        // candidateId that received vote in current term (-1 if none)
 	log         []LogEntry // log entries (zero-indexed)
 
-	// TODO: commit entries to state machine once possible
 	// Volatile state on all servers
 	commitIndex int // index of highest log entry known to be committed (initialized to -1, increases monotonically)
 	lastApplied int // index of highest log entry applied to state machine (initialized to -1, increases monotonically)

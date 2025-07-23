@@ -99,7 +99,7 @@ func (s *RaftServer) promoteToLeader() {
 			continue
 		}
 		nextIndex[serverID] = len(s.log)
-		matchIndex[serverID] = -1
+		matchIndex[serverID] = INITIAL_INDEX
 	}
 	s.nextIndex = nextIndex
 	s.matchIndex = matchIndex
