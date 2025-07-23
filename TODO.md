@@ -35,10 +35,10 @@
 
 ### Commands Received from Clients
 
-- [ ] Add an endpoint to the server for clients to submit commands on
-- [ ] Implement sending of actual AppendEntries RPCs (not just heartbeats) by the leader in order to replicate log entries
-- [ ] Implement determination of when individual commands are committed (replicated across a majority of the cluster)
-- [ ] Apply commands to the state machine once they are committed (can be something basic like just a debug log for now)
+- [x] Add an endpoint to the server for clients to submit commands on
+- [x] Implement sending of actual AppendEntries RPCs (not just heartbeats) by the leader in order to replicate log entries
+- [x] Implement determination of when individual commands are committed (replicated across a majority of the cluster)
+- [x] Apply commands to the state machine once they are committed (can be something basic like just a debug log for now)
 
 ### Persistence
 

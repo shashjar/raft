@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
+	"strconv"
 )
 
 type AppendEntriesArgs struct {
@@ -53,15 +55,15 @@ func (s *RaftServer) executeAppendEntries(args AppendEntriesArgs) AppendEntriesR
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	if args.Term > s.currentTerm || (args.Term == s.currentTerm && s.serverState != Follower) {
+		s.convertToFollower(args.Term)
+	}
+
 	results := AppendEntriesResults{Term: s.currentTerm, Success: false}
 
 	// (1)
 	if args.Term < s.currentTerm {
 		return results
-	}
-
-	if args.Term > s.currentTerm || (args.Term == s.currentTerm && s.serverState == Candidate) {
-		s.convertToFollower(args.Term)
 	}
 
 	// Reset election timer when receiving a valid AppendEntries RPC
@@ -77,10 +79,70 @@ func (s *RaftServer) executeAppendEntries(args AppendEntriesArgs) AppendEntriesR
 
 	// (5)
 	if args.LeaderCommit > s.commitIndex {
+		oldCommitIndex := s.commitIndex
 		lastNewEntryIndex := len(s.log) - 1
 		s.commitIndex = min(args.LeaderCommit, lastNewEntryIndex)
+		if s.commitIndex > oldCommitIndex {
+			s.applyCommittedEntries()
+		}
 	}
 
 	results.Success = true
 	return results
+}
+
+func (s *RaftServer) SendAppendEntries(serverAddr ServerAddress) {
+	for {
+		s.mu.Lock()
+
+		nextIndex, exists := s.nextIndex[serverAddr.id]
+		if !exists {
+			panic(fmt.Errorf("nextIndex for server %d not found", serverAddr.id))
+		}
+
+		prevLogIndex := nextIndex - 1
+		prevLogTerm := INITIAL_TERM
+		if prevLogIndex >= 0 {
+			prevLogTerm = s.log[prevLogIndex].term
+		}
+
+		newEntries := s.log[nextIndex:]
+
+		args := AppendEntriesArgs{
+			Term:         s.currentTerm,
+			LeaderID:     s.serverID,
+			PrevLogIndex: prevLogIndex,
+			PrevLogTerm:  prevLogTerm,
+			Entries:      newEntries,
+			LeaderCommit: s.commitIndex,
+		}
+
+		s.mu.Unlock()
+
+		var results AppendEntriesResults
+		if err := makeFullRequest(serverAddr.host+":"+strconv.Itoa(serverAddr.port), APPEND_ENTRIES_PATH, &args, &results); err != nil {
+			panic(err)
+		}
+
+		s.mu.Lock()
+
+		if results.Term > s.currentTerm {
+			s.convertToFollower(results.Term)
+			s.mu.Unlock()
+			return
+		}
+
+		if results.Success { // If successful: update nextIndex and matchIndex
+			s.nextIndex[serverAddr.id] = nextIndex + len(newEntries)
+			s.matchIndex[serverAddr.id] = s.nextIndex[serverAddr.id] - 1
+			s.checkAndUpdateCommitIndex() // Check if any new entries can be committed
+			s.mu.Unlock()
+			return
+		} else { // If failed because of log inconsistency: decrement nextIndex and try again
+			if nextIndex > 0 {
+				s.nextIndex[serverAddr.id] = nextIndex - 1
+			}
+			s.mu.Unlock()
+		}
+	}
 }

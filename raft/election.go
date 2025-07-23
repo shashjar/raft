@@ -104,6 +104,8 @@ func (s *RaftServer) promoteToLeader() {
 	s.nextIndex = nextIndex
 	s.matchIndex = matchIndex
 
+	s.pendingCommands = make(map[int]chan bool)
+
 	if s.electionTimer != nil {
 		s.electionTimer.Stop()
 	}

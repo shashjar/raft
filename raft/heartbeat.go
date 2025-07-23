@@ -51,6 +51,7 @@ func (s *RaftServer) onHeartbeatTimeout() {
 func (s *RaftServer) sendHeartbeat(serverAddr ServerAddress, heartbeatTerm int) {
 	s.mu.Lock()
 
+	// TODO: using INITIAL_INDEX and INITIAL_TERM might not work
 	args := AppendEntriesArgs{
 		Term:         heartbeatTerm,
 		LeaderID:     s.serverID,

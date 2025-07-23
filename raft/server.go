@@ -54,9 +54,10 @@ type RaftServer struct {
 	votesReceived int // counter of votes that the candidate has received in the current election
 
 	// Volatile state on leaders (reinitialized after promotion to leader)
-	nextIndex      map[int]int // map of server ID to index of the next log entry to send to that server (initialized to leader last log index + 1, a.k.a. the length of the leader's log)
-	matchIndex     map[int]int // map of server ID to index of highest log entry known to be replicated on server (initialized to -1, increases monotonically)
-	heartbeatTimer *time.Timer // timer for the heartbeat timeout
+	nextIndex       map[int]int       // map of server ID to index of the next log entry to send to that server (initialized to leader last log index + 1, a.k.a. the length of the leader's log)
+	matchIndex      map[int]int       // map of server ID to index of highest log entry known to be replicated on server (initialized to -1, increases monotonically)
+	pendingCommands map[int]chan bool // map of log index to channel for signaling when entry is committed
+	heartbeatTimer  *time.Timer       // timer for the heartbeat timeout
 
 	// State for election timer
 	electionTimeout time.Duration // duration of the election timeout
@@ -84,9 +85,10 @@ func InitializeRaftServer(serverID int, clusterMembers map[int]ServerAddress) *R
 
 		votesReceived: 0,
 
-		nextIndex:      nil,
-		matchIndex:     nil,
-		heartbeatTimer: nil,
+		nextIndex:       nil,
+		matchIndex:      nil,
+		pendingCommands: nil,
+		heartbeatTimer:  nil,
 
 		electionTimeout: 0,
 		electionTimer:   nil,
@@ -106,6 +108,9 @@ func StartServer(serverID int, clusterMembers map[int]ServerAddress) {
 	// Register HTTP handlers for Raft RPCs
 	http.HandleFunc(APPEND_ENTRIES_PATH, server.HandleAppendEntries)
 	http.HandleFunc(REQUEST_VOTE_PATH, server.HandleRequestVote)
+
+	// Register HTTP handler for client commands
+	http.HandleFunc(SUBMIT_COMMAND_PATH, server.HandleSubmitCommand)
 
 	// Bring up the server to begin listening for RPCs
 	addr := clusterMembers[serverID]
@@ -127,6 +132,8 @@ func (s *RaftServer) convertToFollower(newTerm int) {
 
 	s.nextIndex = nil
 	s.matchIndex = nil
+
+	s.pendingCommands = nil
 
 	if s.heartbeatTimer != nil {
 		s.heartbeatTimer.Stop()

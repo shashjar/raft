@@ -1,9 +1,140 @@
 package main
 
+import (
+	"net/http"
+	"time"
+)
+
 type LogEntry struct {
 	// TODO: command is just a string for now - add actual commands later
 	command string // command for state machine
 	term    int    // term when entry was received by leader
+}
+
+type SubmitCommandArgs struct {
+	// TODO: for now, just a string
+	Command string `json:"command"`
+}
+
+type SubmitCommandResults struct {
+	// TODO: for now, just a single field
+	Success bool `json:"success"`
+}
+
+func (s *RaftServer) HandleSubmitCommand(w http.ResponseWriter, r *http.Request) {
+	var args SubmitCommandArgs
+	if err := parseIncomingRequest(r, &args); err != nil {
+		http.Error(w, "Failed to parse request body", http.StatusBadRequest)
+		return
+	}
+
+	s.dlog("SubmitCommand received: %+v", args)
+
+	results := s.executeSubmitCommand(args)
+	if err := sendOutgoingResponse(w, &results); err != nil {
+		http.Error(w, "Failed to marshal and send response", http.StatusInternalServerError)
+		return
+	}
+
+	s.dlog("SubmitCommand response: %+v", results)
+}
+
+func (s *RaftServer) executeSubmitCommand(args SubmitCommandArgs) SubmitCommandResults {
+	s.mu.Lock()
+
+	results := SubmitCommandResults{Success: false}
+
+	if s.serverState != Leader {
+		// TODO: in this case, we should return a redirect to the current leader
+		s.mu.Unlock()
+		return results
+	}
+
+	s.log = append(s.log, LogEntry{command: args.Command, term: s.currentTerm})
+
+	logIndex := len(s.log) - 1
+	commandChan := make(chan bool, 1)
+	s.pendingCommands[logIndex] = commandChan
+
+	for serverID, serverAddr := range s.clusterAddrs {
+		if serverID == s.serverID {
+			continue
+		}
+
+		go s.SendAppendEntries(serverAddr)
+	}
+
+	s.checkAndUpdateCommitIndex()
+
+	s.mu.Unlock()
+
+	// Wait for the command to be committed
+	select {
+	case <-commandChan:
+		results.Success = true
+	case <-time.After(5 * time.Second): // 5 second timeout
+		s.mu.Lock()
+		delete(s.pendingCommands, logIndex)
+		s.mu.Unlock()
+		results.Success = false
+	}
+
+	return results
+}
+
+// Increase the commitIndex on the leader if possible, and apply any newly committed
+// entries to the state machine.
+// If there exists an N such that N > commitIndex, a majority of matchIndex[i] ≥ N,
+// and log[N].term == currentTerm: set commitIndex = N.
+func (s *RaftServer) checkAndUpdateCommitIndex() {
+	if s.serverState != Leader {
+		return
+	}
+
+	for i := s.commitIndex + 1; i < len(s.log); i++ {
+		replicatedCount := 1 // Leader has the entry
+
+		for serverID, matchIndex := range s.matchIndex {
+			if serverID != s.serverID && matchIndex >= i {
+				replicatedCount++
+			}
+		}
+
+		majority := (s.clusterSize / 2) + 1
+		if replicatedCount >= majority && s.log[i].term == s.currentTerm {
+			oldCommitIndex := s.commitIndex
+			s.commitIndex = i
+
+			// Apply any newly committed entries to the state machine
+			if s.commitIndex > oldCommitIndex {
+				s.applyCommittedEntries()
+			}
+
+			// Signal on the pending command channel that this entry has been committed
+			if ch, exists := s.pendingCommands[i]; exists {
+				ch <- true
+				close(ch)
+				delete(s.pendingCommands, i)
+			}
+		} else {
+			break
+		}
+	}
+}
+
+// Applies all committed entries which haven't been applied yet to the state machine.
+func (s *RaftServer) applyCommittedEntries() {
+	for s.lastApplied < s.commitIndex {
+		s.lastApplied++
+		entry := s.log[s.lastApplied]
+		s.applyCommandToStateMachine(entry.command)
+	}
+}
+
+// Applies a command to the state machine.
+func (s *RaftServer) applyCommandToStateMachine(command string) {
+	// TODO: Implement actual state machine logic here; for now, just logging the command
+	s.dlog("Applying command to state machine: %s", command)
 }
 
 /*
