@@ -17,8 +17,8 @@ type SubmitCommandArgs struct {
 }
 
 type SubmitCommandResults struct {
-	// TODO: for now, just a single field
-	Success bool `json:"success"`
+	Success  bool `json:"success"`
+	LeaderID int  `json:"leaderId"`
 }
 
 func (s *RaftServer) HandleSubmitCommand(w http.ResponseWriter, r *http.Request) {
@@ -46,10 +46,11 @@ func (s *RaftServer) HandleSubmitCommand(w http.ResponseWriter, r *http.Request)
 func (s *RaftServer) executeSubmitCommand(args SubmitCommandArgs) SubmitCommandResults {
 	s.mu.Lock()
 
-	results := SubmitCommandResults{Success: false}
+	results := SubmitCommandResults{Success: false, LeaderID: -1}
 
+	// Redirect the client to the current leader if this server is not the leader
 	if s.serverState != Leader {
-		// TODO: in this case, we should return a redirect to the current leader
+		results.LeaderID = s.leaderID
 		s.mu.Unlock()
 		return results
 	}

@@ -7,8 +7,7 @@ import (
 )
 
 type AppendEntriesArgs struct {
-	Term int `json:"term"` // leader's term
-	// TODO: not used yet, but will be used for client redirection. store the current leader ID in the server state
+	Term         int        `json:"term"`         // leader's term
 	LeaderID     int        `json:"leaderId"`     // so follower can redirect clients
 	PrevLogIndex int        `json:"prevLogIndex"` // index of log entry immediately preceding new ones
 	PrevLogTerm  int        `json:"prevLogTerm"`  // term of prevLogIndex entry
@@ -70,7 +69,8 @@ func (s *RaftServer) executeAppendEntries(args AppendEntriesArgs) AppendEntriesR
 		return results
 	}
 
-	// Reset election timer when receiving a valid AppendEntries RPC
+	// When receiving a valid AppendEntries RPC: set leader ID & reset election timer
+	s.leaderID = args.LeaderID
 	s.StartOrResetElectionTimer()
 
 	// (2)

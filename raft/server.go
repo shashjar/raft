@@ -17,6 +17,7 @@ const (
 	Candidate
 )
 
+// TODO: change term to be initialized to -1 so that the first valid term is 0?
 const (
 	INITIAL_TERM  = 0
 	INITIAL_INDEX = -1
@@ -47,6 +48,7 @@ type RaftServer struct {
 	// Volatile state on all servers
 	commitIndex int // index of highest log entry known to be committed (initialized to -1, increases monotonically)
 	lastApplied int // index of highest log entry applied to state machine (initialized to -1, increases monotonically)
+	leaderID    int // ID of the current known leader (initialized to -1)
 
 	// Volatile state on candidates (reinitialized at the start of each election)
 	votesReceived int // counter of votes that the candidate has received in the current election
@@ -80,6 +82,7 @@ func InitializeRaftServer(serverID int, clusterMembers map[int]ServerAddress) *R
 
 		commitIndex: INITIAL_INDEX,
 		lastApplied: INITIAL_INDEX,
+		leaderID:    -1,
 
 		votesReceived: 0,
 

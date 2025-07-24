@@ -91,6 +91,7 @@ func (s *RaftServer) promoteToLeader() {
 	s.dlog("Promoting to leader in term %d", s.currentTerm)
 
 	s.serverState = Leader
+	s.leaderID = s.serverID
 
 	nextIndex := make(map[int]int)
 	matchIndex := make(map[int]int)

@@ -47,7 +47,7 @@
 
 ### Optimizations
 
-- [ ] If a client makes a request to a non-leader server in the cluster, redirect that client to the actual leader
+- [x] If a client makes a request to a non-leader server in the cluster, redirect that client to the actual leader
 - [ ] Improve conflict resolution for when the leader needs to send earlier entries to a specific follower (include the actual latest index/term in a follower's response to an `AppendEntries` RPC)
 
 ## Raft-Backed Service (Key/Value Database)
@@ -56,6 +56,7 @@
   - [ ] Expand/extend the `LogEntry`, `SubmitCommandArgs`, and `SubmitCommandResults` schemas
   - [ ] Support commands `PUT(k, v)`, `GET(k)`, and `CAS(k, cmp, v)` (atomic compare-and-swap)
   - [ ] Apply commands to the state machine once those commands are committed
+- [ ] Implement a client for this service?
 
 ## Finalization of Implementation
 
