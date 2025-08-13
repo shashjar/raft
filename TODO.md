@@ -48,7 +48,7 @@
 ### Optimizations
 
 - [x] If a client makes a request to a non-leader server in the cluster, redirect that client to the actual leader
-- [ ] Improve conflict resolution for when the leader needs to send earlier entries to a specific follower (include the actual latest index/term in a follower's response to an `AppendEntries` RPC)
+- [ ] Improve conflict resolution for when the leader needs to send earlier entries to a specific follower (include the actual latest index/term in a follower's response to an `AppendEntries` RPC) - described at the end of section 5.3 in the white paper
 
 ## Raft-Backed Service (Key/Value Database)
 
