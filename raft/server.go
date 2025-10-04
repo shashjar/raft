@@ -17,7 +17,6 @@ const (
 	Candidate
 )
 
-// TODO: change term to be initialized to -1 so that the first valid term is 0?
 const (
 	INITIAL_TERM  = 0
 	INITIAL_INDEX = -1

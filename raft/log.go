@@ -6,13 +6,11 @@ import (
 )
 
 type LogEntry struct {
-	// TODO: Command is just a string for now - add actual commands later
 	Command string // command for state machine
 	Term    int    // term when entry was received by leader
 }
 
 type SubmitCommandArgs struct {
-	// TODO: for now, just a string
 	Command string `json:"command"`
 }
 
@@ -138,7 +136,6 @@ func (s *RaftServer) applyCommittedEntries() {
 
 // Applies a command to the state machine.
 func (s *RaftServer) applyCommandToStateMachine(command string) {
-	// TODO: Implement actual state machine logic here; for now, just logging the command
 	s.dlog("Applying command to state machine: %s", command)
 }
 

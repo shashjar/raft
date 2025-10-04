@@ -16,7 +16,7 @@
 ### Basic RPC Logic
 
 - [x] Implement the HTTP handlers for the AppendEntries and RequestVote RPCs
-- [ ] Implement the core Raft algorithm
+- [x] Implement the core Raft algorithm
   - [x] Actual execution of the RequestVote RPC
   - [x] Actual execution of the AppendEntries RPC
   - [x] Implement basic logic for the election timeout
@@ -58,17 +58,8 @@
   - [ ] Apply commands to the state machine once those commands are committed
 - [ ] Implement a client for this service?
 
-## Finalization of Implementation
-
-- [ ] Go through entire [Raft whitepaper](https://raft.github.io/raft.pdf) again to make sure Raft algorithm specification is correctly and completely implemented
-
 ## Verification/Testing
 
 - [ ] Write a test harness & unit tests to verify the correctness of individual components of the Raft implementation
 - [ ] Implement a simulator to verify the correctness of the Raft implementation
   - [ ] In simulator, it would be worth delaying and/or dropping some messages randomly (and regular messages should be simulated with a small delay in transmission)
-
-## Cleanup
-
-- [ ] Add sufficient documentation/comments throughout code
-- [ ] Write `README.md`
