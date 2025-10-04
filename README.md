@@ -1,4 +1,4 @@
-# Raft Consensus Algorithm Implementation
+# Raft
 
 [![Go 1.23](https://img.shields.io/badge/go-1.23-9cf.svg)](https://golang.org/dl/)
 
@@ -6,7 +6,7 @@ An implementation of the [Raft consensus algorithm](https://raft.github.io/raft.
 
 ## Overview
 
-This project implements the Raft consensus algorithm as described in the original paper by Diego Ongaro and John Ousterhout. Raft is a consensus algorithm designed to be understandable and equivalent to Paxos but more understandable. It achieves consensus through leader election, log replication, and safety mechanisms.
+This project implements the Raft consensus algorithm as described in the original paper by Diego Ongaro and John Ousterhout. Raft is a consensus algorithm designed to be understandable and equivalent to Paxos, but more understandable. It achieves consensus through leader election, log replication, and safety mechanisms.
 
 ## Features
 
@@ -20,7 +20,7 @@ This project implements the Raft consensus algorithm as described in the origina
 
 This implementation consists of several key components:
 
-- **`main.go`**: The entrypoint for running a single Raft server part of a cluster
+- **`main.go`**: The entrypoint for running a single Raft server as part of a cluster
 - **`server.go`**: Core Raft server implementation with state management
 - **`persistence.go`**: Persistent state storage and recovery
 - **`http.go`**: HTTP client and server utilities
